@@ -9,14 +9,14 @@ import base64
 import sys
 import tensorflow as tf
 import cv2
-import threading
+import multiprocessing
 import requests
 from multiprocessing import Queue
+from multiprocessing import Process
 from typing import Any
 
 sys.path.append("..")
 from utils import label_map_util
-from utils import visualization_utils as vis_util
 
 '''
 author: birdguan
@@ -48,6 +48,12 @@ camera_address4 = "rtsp://admin:admin12345@192.168.0.28:554/Streaming/Channels/1
 # camera_address2 = "rtsp://admin:futurexlab109@192.168.1.111:554/Streaming/Channels/101"
 # camera_address3 = "rtsp://admin:futurexlab109@192.168.1.114:554/Streaming/Channels/101"
 # camera_address4 = "rtsp://admin:futurexlab109@192.168.1.114:554/Streaming/Channels/101"
+
+'''
+2020/5/19 更新：
+上传github时下方关键信息隐去，需要补充
+by birdguan
+'''
 INTERAL = 180
 PERSON_FILEPATH = "./person_image"
 PERSON_WITH_OUT_HELMET_PATH = "./person without helmet"
@@ -110,10 +116,10 @@ categories = label_map_util.convert_label_map_to_categories(label_map, max_num_c
 category_index = label_map_util.create_category_index(categories)
 
 
-# 网络摄像头取流多线程
-class readCaptureThread(threading.Thread):
+# 网络摄像头取流多进程
+class readCaptureProcess(Process):
     def __init__(self, thread_name, camera_id1, camera_id2, cap1, cap2, queue1, queue2, queue_status1, queue_status2):
-        threading.Thread.__init__(self)
+        super().__init__()
         self.thread_name = thread_name
         self.camera_id1 = camera_id1
         self.camera_id2 = camera_id2
@@ -123,21 +129,21 @@ class readCaptureThread(threading.Thread):
         self.queue2 = queue2
         self.queue_status1 = queue_status1
         self.queue_status2 = queue_status2
-        self.__running = threading.Event()
+        self.__running = multiprocessing.Event()
 
     def run(self):
         print("开始线程：", self.thread_name)
-        send_frame_to_main_thread(self.camera_id1, self.camera_id2, self.cap1, self.cap2,
-                                  self.queue1, self.queue2, self.queue_status1, self.queue_status2)
+        send_frame_to_main_process(self.camera_id1, self.camera_id2, self.cap1, self.cap2,
+                                   self.queue1, self.queue2, self.queue_status1, self.queue_status2)
         print("退出线程：", self.thread_name)
 
     def stop(self):
         self.__running.clear()
 
 
-def send_frame_to_main_thread(camera_id1, camera_id2, cap1, cap2, queue1, queue2, queue_status_1, queue_status_2):
+def send_frame_to_main_process(camera_id1, camera_id2, cap1, cap2, queue1, queue2, queue_status_1, queue_status_2):
     """
-    子线程采集到的图像帧发送到主线程处理
+    子线程采集到的图像帧发送到主进程处理
     :param camera_id1:
     :param camera_id2:
     :param cap1:
@@ -315,10 +321,10 @@ def main():
             # cap3 = cv2.VideoCapture("testVideo5.mp4")
             # cap4 = cv2.VideoCapture("testVideo5.mp4")
 
-            read_capture_thread1_2 = readCaptureThread("取流线程1", 1, 2, cap1, cap2,
-                                                       queue1, queue2, queue_status_1, queue_status_2)
-            read_capture_thread3_4 = readCaptureThread("取流线程2", 3, 4, cap3, cap4,
-                                                       queue3, queue4, queue_status_3, queue_status_4)
+            read_capture_thread1_2 = readCaptureProcess("取流线程1", 1, 2, cap1, cap2,
+                                                        queue1, queue2, queue_status_1, queue_status_2)
+            read_capture_thread3_4 = readCaptureProcess("取流线程2", 3, 4, cap3, cap4,
+                                                        queue3, queue4, queue_status_3, queue_status_4)
             read_capture_thread1_2.start()
             read_capture_thread3_4.start()
 
